@@ -11,11 +11,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"ping-and-report/record"
 	"strconv"
 	"time"
 )
 
-type Config struct {
+type config struct {
 	Slack struct {
 		WebHookURL string
 		Mention    string
@@ -23,18 +24,8 @@ type Config struct {
 	Pinged []string
 }
 
-type Available struct {
-	AddressAvailables map[string]AddressAvailable
-}
-
-type AddressAvailable struct {
-	CountTrying   uint64
-	CountSucceed  uint64
-	LastAvailable bool
-}
-
-const CONFIG = "config.yml"
-const AVAILABLE = "available.json"
+const configYml = "config.yml"
+const recordJson = "record.json"
 
 func main() {
 	exe, err := os.Executable()
@@ -43,10 +34,10 @@ func main() {
 	}
 	dir := filepath.Dir(exe)
 
-	var cfg Config
-	cfgp := dir + "/" + CONFIG
+	cfgp := dir + "/" + configYml
+	var cfg config
 	{
-		cfg = Config{}
+		cfg = config{}
 
 		buf, err := ioutil.ReadFile(cfgp)
 		if err != nil {
@@ -58,19 +49,19 @@ func main() {
 		}
 	}
 
-	var avb Available
-	avbp := dir + "/" + AVAILABLE
+	arcdp := dir + "/" + recordJson
+	var arcd record.AvailableRecord
 	{
-		avb = Available{map[string]AddressAvailable{}}
+		arcd = record.AvailableRecord{}
 
-		if exists(avbp) {
-			buf, err := ioutil.ReadFile(avbp)
+		if fileExists(arcdp) {
+			buf, err := ioutil.ReadFile(arcdp)
 			if err != nil {
-				log.Fatal("Failed to read " + avbp)
+				log.Fatal("Failed to read " + arcdp)
 			}
-			err = json.Unmarshal(buf, &avb)
+			err = json.Unmarshal(buf, &arcd)
 			if err != nil {
-				log.Fatal("Failed to parse " + avbp)
+				log.Fatal("Failed to parse " + arcdp)
 			}
 		}
 	}
@@ -82,31 +73,24 @@ func main() {
 	for range cfg.Pinged {
 		res := <-c
 		addr := res.Address
-		suc := res.IsAvailable
+		nowAvab := res.IsAvailable
 
-		log.Println("Sent a ping to " + addr + ": " + strconv.FormatBool(suc))
+		log.Println("Sent a ping to " + addr + ": " + strconv.FormatBool(nowAvab))
 
-		addravb, ok := avb.AddressAvailables[addr]
-		if !ok {
-			addravb = AddressAvailable{0, 0, true}
-		}
+		swh := arcd.Write(addr, nowAvab)
+		rcd := arcd.Record(addr)
 
-		if suc {
-			addravb.CountSucceed++
-		}
-		addravb.CountTrying++
-		// suc XOR last_suc
-		if suc != addravb.LastAvailable {
+		if swh {
 			var percent float32
-			if addravb.CountTrying == 0 {
+			if rcd.CountTrying == 0 {
 				percent = 0
 			} else {
-				percent = float32(addravb.CountSucceed) / float32(addravb.CountTrying)
+				percent = float32(rcd.CountSucceed) / float32(rcd.CountTrying)
 			}
 			percent *= 100
 
 			var msg string
-			if suc {
+			if nowAvab {
 				// down -> up
 				msg = ":signal_strength: The server " + addr + " is currently up! | available: " + fmt.Sprintf("%.1f%%", percent)
 			} else {
@@ -119,16 +103,13 @@ func main() {
 				log.Fatal("Failed to report")
 			}
 		}
-		addravb.LastAvailable = suc
-
-		avb.AddressAvailables[addr] = addravb
 	}
 
-	jsonBytes, err := json.Marshal(avb)
+	jsonBytes, err := json.Marshal(arcd)
 	if err != nil {
 		log.Fatal("Failed to parse struct")
 	}
-	err = ioutil.WriteFile(avbp, jsonBytes, 0666)
+	err = ioutil.WriteFile(arcdp, jsonBytes, 0666)
 	if err != nil {
 		log.Fatal("Failed to write json")
 	}
@@ -165,7 +146,7 @@ func report(url string, mention string, text string) error {
 	return nil
 }
 
-func exists(path string) bool {
+func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
