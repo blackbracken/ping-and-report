@@ -81,37 +81,48 @@ func main() {
 		}
 
 		pinger.Count = 3
+		pinger.Timeout = 10 * time.Second
 		pinger.OnFinish = func(s *ping.Statistics) {
-			addravb, ok := avb.AddressAvailables[s.Addr]
+			addravb, ok := avb.AddressAvailables[addr]
 			if !ok {
 				addravb = AddressAvailable{0, 0, true}
 			}
 
 			suc := s.PacketsRecv > 0
-
-			addravb.CountTrying++
-			addravb.LastAvailable = suc
-
-			var msg string
 			if suc {
 				addravb.CountSucceed++
-				msg = "UP  : " + s.Addr
-			} else {
-				msg = "DOWN: " + s.Addr
 			}
+			addravb.CountTrying++
+			// suc ^ last_suc
+			if suc != addravb.LastAvailable {
+				var percent float32
+				if addravb.CountTrying == 0 {
+					percent = 0
+				} else {
+					percent = float32(addravb.CountSucceed) / float32(addravb.CountTrying)
+				}
+				percent *= 100
 
-			err := report(cfg.Slack.WebHookURL, cfg.Slack.Mention, msg)
-			if err != nil {
-				log.Fatal("Failed to report")
+				var msg string
+				if suc {
+					// down -> up
+					msg = ":signal_strength: The server " + addr + " is currently up! | available: " + fmt.Sprintf("%.1f%%", percent)
+				} else {
+					// up -> down
+					msg = ":warning: The server " + addr + " is currently down! | available: " + fmt.Sprintf("%.1f%%", percent)
+				}
+
+				err := report(cfg.Slack.WebHookURL, cfg.Slack.Mention, msg)
+				if err != nil {
+					log.Fatal("Failed to report")
+				}
 			}
+			addravb.LastAvailable = suc
 
-			avb.AddressAvailables[s.Addr] = addravb
+			avb.AddressAvailables[addr] = addravb
 		}
-		pinger.Timeout = 10 * time.Second
 		pinger.Run()
 	}
-
-	fmt.Println(avb)
 
 	jsonBytes, err := json.Marshal(avb)
 	if err != nil {
