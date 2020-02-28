@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -74,54 +75,53 @@ func main() {
 		}
 	}
 
+	c := make(chan pingResult)
 	for _, addr := range cfg.Pinged {
-		pinger, err := ping.NewPinger(addr)
-		if err != nil {
-			log.Fatal("Failed to send a ping to " + addr)
+		go sendPing(addr, c)
+	}
+	for range cfg.Pinged {
+		res := <-c
+		addr := res.Address
+		suc := res.IsAvailable
+
+		log.Println("Sent a ping to " + addr + ": " + strconv.FormatBool(suc))
+
+		addravb, ok := avb.AddressAvailables[addr]
+		if !ok {
+			addravb = AddressAvailable{0, 0, true}
 		}
 
-		pinger.Count = 3
-		pinger.Timeout = 10 * time.Second
-		pinger.OnFinish = func(s *ping.Statistics) {
-			addravb, ok := avb.AddressAvailables[addr]
-			if !ok {
-				addravb = AddressAvailable{0, 0, true}
+		if suc {
+			addravb.CountSucceed++
+		}
+		addravb.CountTrying++
+		// suc XOR last_suc
+		if suc != addravb.LastAvailable {
+			var percent float32
+			if addravb.CountTrying == 0 {
+				percent = 0
+			} else {
+				percent = float32(addravb.CountSucceed) / float32(addravb.CountTrying)
 			}
+			percent *= 100
 
-			suc := s.PacketsRecv > 0
+			var msg string
 			if suc {
-				addravb.CountSucceed++
+				// down -> up
+				msg = ":signal_strength: The server " + addr + " is currently up! | available: " + fmt.Sprintf("%.1f%%", percent)
+			} else {
+				// up -> down
+				msg = ":warning: The server " + addr + " is currently down! | available: " + fmt.Sprintf("%.1f%%", percent)
 			}
-			addravb.CountTrying++
-			// suc ^ last_suc
-			if suc != addravb.LastAvailable {
-				var percent float32
-				if addravb.CountTrying == 0 {
-					percent = 0
-				} else {
-					percent = float32(addravb.CountSucceed) / float32(addravb.CountTrying)
-				}
-				percent *= 100
 
-				var msg string
-				if suc {
-					// down -> up
-					msg = ":signal_strength: The server " + addr + " is currently up! | available: " + fmt.Sprintf("%.1f%%", percent)
-				} else {
-					// up -> down
-					msg = ":warning: The server " + addr + " is currently down! | available: " + fmt.Sprintf("%.1f%%", percent)
-				}
-
-				err := report(cfg.Slack.WebHookURL, cfg.Slack.Mention, msg)
-				if err != nil {
-					log.Fatal("Failed to report")
-				}
+			err := report(cfg.Slack.WebHookURL, cfg.Slack.Mention, msg)
+			if err != nil {
+				log.Fatal("Failed to report")
 			}
-			addravb.LastAvailable = suc
-
-			avb.AddressAvailables[addr] = addravb
 		}
-		pinger.Run()
+		addravb.LastAvailable = suc
+
+		avb.AddressAvailables[addr] = addravb
 	}
 
 	jsonBytes, err := json.Marshal(avb)
@@ -132,6 +132,23 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to write json")
 	}
+}
+
+type pingResult struct {
+	Address     string
+	IsAvailable bool
+}
+
+func sendPing(addr string, c chan pingResult) {
+	p, err := ping.NewPinger(addr)
+	if err != nil {
+		log.Fatal("Failed to send a ping to " + addr)
+	}
+
+	p.Count = 3
+	p.Timeout = 10 * time.Second
+	p.OnFinish = func(s *ping.Statistics) { c <- pingResult{addr, s.PacketsRecv > 0} }
+	p.Run()
 }
 
 func report(url string, mention string, text string) error {
