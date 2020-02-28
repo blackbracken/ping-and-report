@@ -1,13 +1,15 @@
 package main
 
 import (
-	"fmt"
+	"bytes"
 	"github.com/sparrc/go-ping"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 type Config struct {
@@ -23,9 +25,9 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to get this executable")
 	}
+	dir := filepath.Dir(exe)
 
-	fmt.Println(filepath.Dir(exe))
-	buf, err := ioutil.ReadFile(filepath.Dir(exe) + "/config.yml")
+	buf, err := ioutil.ReadFile(dir + "/config.yml")
 	if err != nil {
 		log.Fatal("Failed to get config.yml")
 	}
@@ -36,24 +38,41 @@ func main() {
 		log.Fatal("Failed to parse config.yml")
 	}
 
-	slack := cfg.Slack
-	webhook := slack.WebHookURL
-	mention := slack.Mention
+	for _, addr := range cfg.Pinged {
+		pinger, err := ping.NewPinger(addr)
+		if err != nil {
+			log.Fatal("Failed to send a ping to " + addr)
+		}
 
-	fmt.Println("WH: " + webhook)
-	fmt.Println("M : " + mention)
+		pinger.Count = 3
+		pinger.OnFinish = func(s *ping.Statistics) {
+			var msg string
+			if s.PacketsRecv == 0 {
+				msg = "DOWN: " + s.Addr
+			} else {
+				msg = "UP  : " + s.Addr
+			}
 
-	p := cfg.Pinged
-	for i := range p {
-		s := p[i]
-		fmt.Println(s)
+			err := report(cfg.Slack.WebHookURL, cfg.Slack.Mention, msg)
+			if err != nil {
+				log.Fatal("Failed to report")
+			}
+		}
+		pinger.Timeout = 10 * time.Second
+		pinger.Run()
 	}
+}
 
-	pinger, err := ping.NewPinger("google.com")
+func report(url string, mention string, text string) error {
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte("{\"text\":\""+mention+" "+text+"\"}")))
 	if err != nil {
-		log.Fatal("Failed to send a ping google.com")
+		return err
 	}
-	pinger.SetPrivileged(true)
-	pinger.Count = 4
-	pinger.Run()
+
+	_, err = (&http.Client{}).Do(req)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
