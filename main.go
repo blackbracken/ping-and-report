@@ -18,8 +18,6 @@ type Config struct {
 	Pinged []string
 }
 
-type anyMap = map[interface{}]interface{}
-
 func main() {
 	exe, err := os.Executable()
 	if err != nil {
@@ -32,22 +30,22 @@ func main() {
 		log.Fatal("Failed to get config.yml")
 	}
 
-	m := make(anyMap)
-	err = yaml.Unmarshal(buf, &m)
+	cfg := Config{}
+	err = yaml.Unmarshal(buf, &cfg)
 	if err != nil {
 		log.Fatal("Failed to parse config.yml")
 	}
 
-	slack := m["Slack"].(anyMap)
-	webhook := slack["WebHookURL"].(string)
-	mention := slack["Mention"].(string)
+	slack := cfg.Slack
+	webhook := slack.WebHookURL
+	mention := slack.Mention
 
-	fmt.Println(webhook)
-	fmt.Println(mention)
+	fmt.Println("WH: " + webhook)
+	fmt.Println("M : " + mention)
 
-	p := m["Pinged"].([]interface{})
+	p := cfg.Pinged
 	for i := range p {
-		s := p[i].(string)
+		s := p[i]
 		fmt.Println(s)
 	}
 
