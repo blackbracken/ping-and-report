@@ -5,7 +5,7 @@ A slack bot to report life & death of servers
 Call the built binary via cron.
 
 # configure
-Put config.yml in a same directory as the binary.
+Put config.yml into a same directory as the binary.
 
 Example:
 ```config.yml

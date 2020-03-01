@@ -77,17 +77,11 @@ func main() {
 
 		log.Println("Sent a ping to " + addr + ": " + strconv.FormatBool(nowAvab))
 
-		swh := arcd.Write(addr, nowAvab)
+		switched := arcd.Write(addr, nowAvab)
 		rcd := arcd.Record(addr)
 
-		if swh {
-			var percent float32
-			if rcd.CountTrying == 0 {
-				percent = 0
-			} else {
-				percent = float32(rcd.CountSucceed) / float32(rcd.CountTrying)
-			}
-			percent *= 100
+		if switched {
+			percent := float32(rcd.CountSucceed) / float32(rcd.CountTrying) * 100.0
 
 			var msg string
 			if nowAvab {
