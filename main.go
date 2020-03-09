@@ -120,8 +120,8 @@ func sendPing(addr string, c chan pingResult) {
 		log.Fatal("Failed to send a ping to " + addr)
 	}
 
-	p.Count = 3
-	p.Timeout = 10 * time.Second
+	p.Count = 5
+	p.Timeout = 20 * time.Second
 	p.OnFinish = func(s *ping.Statistics) { c <- pingResult{addr, s.PacketsRecv > 0} }
 	p.Run()
 }
