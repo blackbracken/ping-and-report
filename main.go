@@ -66,6 +66,11 @@ func main() {
 		}
 	}
 
+	if !verifyConnection() {
+		log.Fatal("Couldn't establish a connection.")
+		return
+	}
+
 	c := make(chan pingResult)
 	for _, addr := range cfg.Pinged {
 		go sendPing(addr, c)
@@ -112,6 +117,19 @@ func main() {
 type pingResult struct {
 	Address     string
 	IsAvailable bool
+}
+
+func verifyConnection() bool {
+	p, err := ping.NewPinger("8.8.8.8")
+	if err != nil {
+		return false
+	}
+
+	p.Count = 4
+	p.Timeout = 10 * time.Second
+	p.Run()
+
+	return p.Statistics().PacketsRecv > 0
 }
 
 func sendPing(addr string, c chan pingResult) {
