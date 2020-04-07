@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/sparrc/go-ping"
-	"github.com/spf13/viper"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -25,12 +24,9 @@ func main() {
 	}
 	dir := filepath.Dir(exe)
 
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
-	err = viper.ReadInConfig()
+	cfg, err := LoadConfig()
 	if err != nil {
-		log.Fatal("Failed to read a config file")
+		log.Fatal("Failed to read a config")
 	}
 
 	arcdp := dir + "/" + recordJson
@@ -52,14 +48,13 @@ func main() {
 
 	if !verifyConnection() {
 		log.Fatal("Couldn't establish a connection.")
-		return
 	}
 
 	c := make(chan pingResult)
-	for _, addr := range viper.GetStringSlice("pinged") {
+	for _, addr := range cfg.Destinations {
 		go sendPing(addr, c)
 	}
-	for range viper.GetStringSlice("pinged") {
+	for range cfg.Destinations {
 		res := <-c
 		addr := res.Address
 		nowAvab := res.IsAvailable
@@ -81,7 +76,7 @@ func main() {
 				msg = ":warning: The server " + addr + " is currently down! | available: " + fmt.Sprintf("%.1f%%", percent)
 			}
 
-			err := report(viper.GetString("slack.webhookurl"), viper.GetString("slack.mention"), msg)
+			err := report(cfg.Slack.WebHookURL, cfg.Slack.Mention, msg)
 			if err != nil {
 				log.Fatal("Failed to report")
 			}
