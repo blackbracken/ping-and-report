@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/sparrc/go-ping"
-	"gopkg.in/yaml.v2"
+	"github.com/spf13/viper"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -16,15 +16,6 @@ import (
 	"time"
 )
 
-type config struct {
-	Slack struct {
-		WebHookURL string
-		Mention    string
-	}
-	Pinged []string
-}
-
-const configYml = "config.yml"
 const recordJson = "record.json"
 
 func main() {
@@ -34,19 +25,12 @@ func main() {
 	}
 	dir := filepath.Dir(exe)
 
-	cfgp := dir + "/" + configYml
-	var cfg config
-	{
-		cfg = config{}
-
-		buf, err := ioutil.ReadFile(cfgp)
-		if err != nil {
-			log.Fatal("Failed to read " + cfgp)
-		}
-		err = yaml.Unmarshal(buf, &cfg)
-		if err != nil {
-			log.Fatal("Failed to parse " + cfgp)
-		}
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+	err = viper.ReadInConfig()
+	if err != nil {
+		log.Fatal("Failed to read a config file")
 	}
 
 	arcdp := dir + "/" + recordJson
@@ -72,10 +56,10 @@ func main() {
 	}
 
 	c := make(chan pingResult)
-	for _, addr := range cfg.Pinged {
+	for _, addr := range viper.GetStringSlice("pinged") {
 		go sendPing(addr, c)
 	}
-	for range cfg.Pinged {
+	for range viper.GetStringSlice("pinged") {
 		res := <-c
 		addr := res.Address
 		nowAvab := res.IsAvailable
@@ -97,7 +81,7 @@ func main() {
 				msg = ":warning: The server " + addr + " is currently down! | available: " + fmt.Sprintf("%.1f%%", percent)
 			}
 
-			err := report(cfg.Slack.WebHookURL, cfg.Slack.Mention, msg)
+			err := report(viper.GetString("slack.webhookurl"), viper.GetString("slack.mention"), msg)
 			if err != nil {
 				log.Fatal("Failed to report")
 			}
