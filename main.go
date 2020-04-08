@@ -2,73 +2,48 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"github.com/sparrc/go-ping"
-	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
-	"ping-and-report/record"
 	"strconv"
 	"time"
 )
 
-const recordJson = "record.json"
-
 func main() {
-	exe, err := os.Executable()
-	if err != nil {
-		log.Fatal("Failed to get this executable")
-	}
-	dir := filepath.Dir(exe)
-
 	cfg, err := LoadConfig()
 	if err != nil {
 		log.Fatal("Failed to read a config")
 	}
 
-	arcdp := dir + "/" + recordJson
-	var arcd record.AvailableRecord
-	{
-		arcd = record.AvailableRecord{}
-
-		if fileExists(arcdp) {
-			buf, err := ioutil.ReadFile(arcdp)
-			if err != nil {
-				log.Fatal("Failed to read " + arcdp)
-			}
-			err = json.Unmarshal(buf, &arcd)
-			if err != nil {
-				log.Fatal("Failed to parse " + arcdp)
-			}
-		}
+	repo, err := LoadRecordRepository()
+	if err != nil {
+		log.Fatal("Failed to read records")
 	}
 
 	if !verifyConnection() {
-		log.Fatal("Couldn't establish a connection.")
+		log.Fatal("Couldn't establish a connection")
 	}
 
-	c := make(chan pingResult)
+	ch := make(chan pingResult)
 	for _, addr := range cfg.Destinations {
-		go sendPing(addr, c)
+		go sendPing(addr, ch)
 	}
 	for range cfg.Destinations {
-		res := <-c
+		res := <-ch
 		addr := res.Address
-		nowAvab := res.IsAvailable
+		achieved := res.IsAvailable
 
-		log.Println("Sent a ping to " + addr + ": " + strconv.FormatBool(nowAvab))
+		log.Println("Sent a ping to " + addr + ": " + strconv.FormatBool(achieved))
 
-		switched := arcd.Write(addr, nowAvab)
-		rcd := arcd.Record(addr)
+		switched := repo.Record(addr, achieved)
+		rcd := repo.GetRecord(addr)
 
 		if switched {
 			percent := float32(rcd.CountSucceed) / float32(rcd.CountTrying) * 100.0
 
 			var msg string
-			if nowAvab {
+			if achieved {
 				// down -> up
 				msg = ":signal_strength: The server " + addr + " is currently up! | available: " + fmt.Sprintf("%.1f%%", percent)
 			} else {
@@ -83,13 +58,9 @@ func main() {
 		}
 	}
 
-	jsonBytes, err := json.Marshal(arcd)
+	err = repo.Flush()
 	if err != nil {
-		log.Fatal("Failed to parse struct")
-	}
-	err = ioutil.WriteFile(arcdp, jsonBytes, 0666)
-	if err != nil {
-		log.Fatal("Failed to write json")
+		log.Fatal("Failed to write records a file")
 	}
 }
 
@@ -135,9 +106,4 @@ func report(url string, mention string, text string) error {
 	}
 
 	return nil
-}
-
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
 }
