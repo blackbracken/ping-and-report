@@ -4,8 +4,8 @@ go 1.13
 
 require (
 	github.com/sparrc/go-ping v0.0.0-20190613174326-4e5b6552494c
+	github.com/spf13/cobra v0.0.7
 	github.com/spf13/viper v1.6.2
-	github.com/valyala/fastjson v1.5.0
 	golang.org/x/net v0.0.0-20200226121028-0de0cce0169b // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 )

@@ -1,4 +1,4 @@
-package main
+package repo
 
 import "github.com/spf13/viper"
 

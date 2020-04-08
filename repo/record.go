@@ -1,11 +1,14 @@
-package main
+package repo
 
 import (
 	"encoding/json"
 	"io/ioutil"
+	"log"
+	"os"
+	"path/filepath"
 )
 
-const repoFileName = "record.json"
+const repoFileName = "repo.json"
 
 type RecordRepository struct {
 	Records []PingRecord
@@ -20,9 +23,9 @@ type PingRecord struct {
 
 func LoadRecordRepository() (*RecordRepository, error) {
 	repo := RecordRepository{}
-	path := GetCurrentPath() + "/" + repoFileName
+	path := getCurrentPath() + "/" + repoFileName
 
-	if FileExists(path) {
+	if fileExists(path) {
 		buf, err := ioutil.ReadFile(path)
 		if err != nil {
 			return nil, err
@@ -42,7 +45,7 @@ func (repo *RecordRepository) Flush() error {
 		return err
 	}
 
-	err = ioutil.WriteFile(GetCurrentPath()+"/"+repoFileName, bytes, 0666)
+	err = ioutil.WriteFile(getCurrentPath()+"/"+repoFileName, bytes, 0666)
 	if err != nil {
 		return err
 	}
@@ -103,4 +106,18 @@ func (repo *RecordRepository) UnmarshalJSON(data []byte) error {
 
 	repo.Records = jsonRcd.Records
 	return nil
+}
+
+func getCurrentPath() string {
+	exec, err := os.Executable()
+	if err != nil {
+		log.Fatal("Failed to get an executable")
+	}
+
+	return filepath.Dir(exec)
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
