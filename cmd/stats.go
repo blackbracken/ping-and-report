@@ -5,6 +5,7 @@ import (
 	"log"
 	"ping-and-report/repo"
 	"ping-and-report/slack"
+	"time"
 )
 
 var statsCmd = &cobra.Command{
@@ -22,6 +23,8 @@ var statsCmd = &cobra.Command{
 				if err != nil {
 					log.Fatal("Failed to report stats")
 				}
+
+				time.Sleep(1 * time.Second)
 			}
 		}
 	},
