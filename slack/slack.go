@@ -3,9 +3,11 @@ package slack
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"net/http"
 	"ping-and-report/repo"
 	"strings"
+	"time"
 )
 
 var cfg = repo.GetConfigRepository()
@@ -28,23 +30,39 @@ func sendMessage(s string) error {
 		return err
 	}
 
-	removethis, err := (&http.Client{}).Do(req)
+	_, err = (&http.Client{}).Do(req)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("LOG: %d\n", removethis.StatusCode)
-
 	return nil
 }
 
+var recordRepo = repo.GetRecordRepository()
+
 func convertVariables(s, addr string) string {
+	r := recordRepo.GetOrNewRecord(addr)
+
+	avabPercent := fmt.Sprintf("%.1f%%",
+		float32(r.CountSucceed)/float32(math.Max(1, float64(r.CountTrying)))*100.0)
+
+	var uptimeText string
+	if r.LastAchieved {
+		uptimeText = transcribeDuration(time.Since(r.LastBootAt))
+	} else {
+		uptimeText = "NOT_RUNNING_NOW"
+	}
+
 	return strings.NewReplacer(
 		"$address$", addr,
-		"$available_percent$", "DUMMY-100.0%",
-		"$up_time$", "DUMMY-10:20",
-		"$total_running_time$", "DUMMY-20:40",
+		"$available_percent$", avabPercent,
+		"$up_time$", uptimeText,
+		"$total_measured_time$", transcribeDuration(time.Since(r.FirstBootAt)),
 		"\r\n", "\n",
 		"\r", "\n",
 	).Replace(s)
+}
+
+func transcribeDuration(d time.Duration) string {
+	return fmt.Sprintf("%.0fH %dM", math.Floor(d.Hours()), int64(math.RoundToEven(d.Minutes()))%60)
 }

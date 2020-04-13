@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 var recordRepo *RecordRepository
@@ -21,6 +22,8 @@ type PingRecord struct {
 	CountTrying  uint64
 	CountSucceed uint64
 	LastAchieved bool
+	FirstBootAt  time.Time
+	LastBootAt   time.Time
 }
 
 func init() {
@@ -58,7 +61,7 @@ func (repo *RecordRepository) Flush() error {
 }
 
 func (repo *RecordRepository) Record(addr string, achieved bool) (switched bool) {
-	rcd := repo.GetRecord(addr)
+	rcd := repo.GetOrNewRecord(addr)
 
 	switched = achieved != rcd.LastAchieved // XOR
 
@@ -68,18 +71,28 @@ func (repo *RecordRepository) Record(addr string, achieved bool) (switched bool)
 		rcd.CountSucceed++
 	}
 
+	// down -> up
+	if switched && achieved {
+		rcd.LastBootAt = time.Now()
+	}
+
 	repo.putRecord(rcd)
 	return
 }
 
-func (repo *RecordRepository) GetRecord(addr string) PingRecord {
+func (repo *RecordRepository) GetOrNewRecord(addr string) PingRecord {
 	for _, repoRcd := range repo.Records {
 		if repoRcd.Address == addr {
 			return repoRcd
 		}
 	}
 
-	return PingRecord{Address: addr, LastAchieved: true}
+	return PingRecord{
+		Address:      addr,
+		LastAchieved: true,
+		FirstBootAt:  time.Now(),
+		LastBootAt:   time.Now(),
+	}
 }
 
 func (repo *RecordRepository) putRecord(rcd PingRecord) {
