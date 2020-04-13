@@ -14,8 +14,8 @@
 
 | コマンド | 機能 |
 | ---- | ---- |
-| `ping-and-report ping` | pingをslackに通知します |
-| `ping-and-report stats` | 与えられたアドレスの統計情報を表示します |
+| `ping-and-report ping` | destinationsに指定された各アドレスに対してpingを飛ばし、結果をslackに通知します |
+| `ping-and-report stats` | 各アドレスの統計情報をslackに表示します |
 
 ## 設定(config.yml)
 ```config.yml

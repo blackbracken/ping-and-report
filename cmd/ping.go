@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-var measureCmd = &cobra.Command{
-	Use:   "measure",
+var pingCmd = &cobra.Command{
+	Use:   "ping",
 	Short: "Send ping and report the result the given channel of slack",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := repo.GetConfigRepository()
@@ -58,7 +58,7 @@ var measureCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(measureCmd)
+	rootCmd.AddCommand(pingCmd)
 }
 
 type pingResult struct {
