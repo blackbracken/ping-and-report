@@ -3,10 +3,16 @@ package slack
 import (
 	"bytes"
 	"net/http"
+	"ping-and-report/repo"
 )
 
-func SendMessage(url string, text string) error {
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte("{\"text\":\""+mention+" "+text+"\"}")))
+func SendMessage(text string) error {
+	cfg, err := repo.LoadConfig()
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", cfg.Slack.WebHookURL, bytes.NewBuffer([]byte("{\"text\":\""+text+"\"}")))
 	if err != nil {
 		return err
 	}

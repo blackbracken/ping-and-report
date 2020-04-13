@@ -8,6 +8,11 @@ type Config struct {
 		Mention    string
 	}
 	Destinations []string
+	Message      struct {
+		ServerUp    string
+		ServerDown  string
+		ServerStats string
+	}
 }
 
 func LoadConfig() (*Config, error) {
@@ -29,5 +34,14 @@ func LoadConfig() (*Config, error) {
 			viper.GetString("slack.mention"),
 		},
 		Destinations: viper.GetStringSlice("destinations"),
+		Message: struct {
+			ServerUp    string
+			ServerDown  string
+			ServerStats string
+		}{
+			viper.GetString("message.server_up"),
+			viper.GetString("message.server_down"),
+			viper.GetString("message.server_stats"),
+		},
 	}, nil
 }
