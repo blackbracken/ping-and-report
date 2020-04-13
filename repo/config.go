@@ -1,6 +1,11 @@
 package repo
 
-import "github.com/spf13/viper"
+import (
+	"github.com/spf13/viper"
+	"log"
+)
+
+var configRepo *Config
 
 type Config struct {
 	Slack struct {
@@ -15,17 +20,17 @@ type Config struct {
 	}
 }
 
-func LoadConfig() (*Config, error) {
+func init() {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
 
 	err := viper.ReadInConfig()
 	if err != nil {
-		return nil, err
+		log.Fatal("Failed to read a config")
 	}
 
-	return &Config{
+	configRepo = &Config{
 		Slack: struct {
 			WebHookURL string
 			Mention    string
@@ -43,5 +48,9 @@ func LoadConfig() (*Config, error) {
 			viper.GetString("message.server_down"),
 			viper.GetString("message.server_stats"),
 		},
-	}, nil
+	}
+}
+
+func GetConfigRepository() *Config {
+	return configRepo
 }

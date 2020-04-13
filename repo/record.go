@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 )
 
+var recordRepo *RecordRepository
+
 const repoFileName = "repo.json"
 
 type RecordRepository struct {
@@ -21,22 +23,24 @@ type PingRecord struct {
 	LastAchieved bool
 }
 
-func LoadRecordRepository() (*RecordRepository, error) {
-	repo := RecordRepository{}
+func init() {
+	recordRepo = &RecordRepository{}
 	path := getCurrentPath() + "/" + repoFileName
 
 	if fileExists(path) {
 		buf, err := ioutil.ReadFile(path)
 		if err != nil {
-			return nil, err
+			log.Fatal("Failed to read a config")
 		}
-		err = json.Unmarshal(buf, &repo)
+		err = json.Unmarshal(buf, &recordRepo)
 		if err != nil {
-			return nil, err
+			log.Fatal("Failed to unmarshal json in a config")
 		}
 	}
+}
 
-	return &repo, nil
+func GetRecordRepository() *RecordRepository {
+	return recordRepo
 }
 
 func (repo *RecordRepository) Flush() error {

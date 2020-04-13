@@ -21,8 +21,19 @@
 ```config.yml
 slack:
   webhookurl: "https://hooks.slack.com/services/xxxxxxxxxxxxxxxxxxxxxxx"
-  mention: "<!channel>" # <@USER_ID>
 destinations:
   - "xxx.xxx.xxx.xxx"
   - "google.com"
+message:
+  server_up: |-
+    <@SLACK_USER_ID> :signal_strength: The server $address$ is currently up!
+      Available: $available_percent$%
+  server_down: |-
+    <@SLACK_USER_ID> :warning: The server $address$ is currently down!
+      Available: $available_percent$%
+  server_stats: |-
+    Stats of The server $address$:
+      Available: $available_percent$%
+      UpTime: $up_time$
+      TotalRunningTime: $total_running_time$
 ```
