@@ -10,7 +10,6 @@ var configRepo *Config
 type Config struct {
 	Slack struct {
 		WebHookURL string
-		Mention    string
 	}
 	Destinations []string
 	Message      struct {
@@ -33,10 +32,8 @@ func init() {
 	configRepo = &Config{
 		Slack: struct {
 			WebHookURL string
-			Mention    string
 		}{
 			viper.GetString("slack.webhookurl"),
-			viper.GetString("slack.mention"),
 		},
 		Destinations: viper.GetStringSlice("destinations"),
 		Message: struct {
