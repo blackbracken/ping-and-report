@@ -6,9 +6,11 @@
 - `go build`
 
 ## 使い方
-1. config.ymlを記述しバイナリと同じディレクトリに置きます.
-2. 必要に応じてコマンドを実行します.
-  1. このツールはインスタントなコマンドのみ提供するため, 常時監視等はcronなどを用い行ってください.
+- config.ymlを記述しバイナリと同じディレクトリに置きます.
+- Linuxのみ: 非特権なpingをUDP経由で飛ばすために`sudo sysctl -w net.ipv4.ping_group_range="0   2147483647"`を実行します.
+  - ref. [go-ping#note-on-linux-support](https://github.com/sparrc/go-ping#note-on-linux-support)
+- 必要に応じてコマンドを実行します.
+  - このツールはインスタントなコマンドのみ提供するため, 常時監視等はcronなどを用い行ってください.
 
 ## コマンド
 
